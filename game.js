@@ -24,41 +24,53 @@ window.onload = function() {
   }, 75);
 }
 
+// Generates the map of rooms
 function generateRooms() {
-  var width = 20;
-  var height = 7;
-  map = new Array(height);
-  for (var i = 0; i < height; i++) {
-    map[i] = new Array(width);
-    for (var j = 0; j < map[i].length; j++) {
-      if (Math.random() > 0.5) {
-        map[i][j] = generateRoom();
-        currentRoom = map[i][j];
+  var width = 30;
+  var height = 10;
+  var minNumOfRooms = 100;
+  var connectedRooms = [];
+  while (connectedRooms.length < minNumOfRooms) {
+    map = new Array(height);
+    var allRooms = [];
+    for (var i = 0; i < height; i++) {
+      map[i] = new Array(width);
+      for (var j = 0; j < map[i].length; j++) {
+        if (Math.random() < 0.5) {
+          map[i][j] = generateRoom();
+          map[i][j].row = i;
+          map[i][j].col = j;
+          allRooms.push(map[i][j]);
+        }
+      }
+    }
+    currentRoom = allRooms[randomInt(0, allRooms.length - 1)];
+    connectedRooms = getConnectedRooms(currentRoom.row, currentRoom.col, new Array());
+    for (var i = 0; i < allRooms.length; i++) {
+      if (!connectedRooms.includes(allRooms[i])) {
+        map[allRooms[i].row][allRooms[i].col] = null;
       }
     }
   }
 }
 
-function printMap() {
-  var str = "";
-  for (var i = 0; i < map.length; i++) {
-    for (var j = 0; j < map[i].length; j++) {
-      if (map[i][j] == currentRoom) {
-        str += 'O';
-      } else if (map[i][j] != null) {
-        str += '*';
-      } else {
-        str += ' ';
-      }
-    }
-    str += "\n";
+// Starting at a given room, recursively builds up the array of
+// visiting rooms (arr) and return it
+function getConnectedRooms(row, col, arr) {
+  if (mapContains(row, col) && !arr.includes(map[row][col]) && map[row][col] != null) {
+    arr.push(map[row][col]);
+    getConnectedRooms(row + 1, col, arr);
+    getConnectedRooms(row - 1, col, arr);
+    getConnectedRooms(row, col + 1, arr);
+    getConnectedRooms(row, col - 1, arr);
   }
-  id("map").innerHTML = str;
+  return arr;
 }
 
+// Genereates a single room object
 function generateRoom() {
-  var width = 60;
-  var height = 20;
+  var width = randomInt(20, 80);
+  var height = randomInt(10, 30);
   var room = new Array(height);
   for (var i = 0; i < room.length; i++) {
     room[i] = new Array(width);
@@ -72,12 +84,61 @@ function generateRoom() {
   return room;
 }
 
+function loadRoomAt(row, col) {
+  if (mapContains(row, col) && map[row][col] != null) {
+    console.log("moved room!");
+    currentRoom[player.row][player.col] = null;
+    currentRoom = map[row][col];
+    addPlayerToRoom();
+    printMap();
+  }
+}
+
+// Returns a random int in the range of [min, max]
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function mapContains(row, col) {
+  return row >= 0 && row < map.length && col >= 0 && col < map[0].length;
+}
+
+// Prints the map of rooms, including showing current room
+function printMap() {
+  var str = "+";
+  for (var i = 0; i < map[0].length; i++) {
+    str +="="
+  }
+  str += "+\n";
+  for (var i = 0; i < map.length; i++) {
+    str += "|";
+    for (var j = 0; j < map[i].length; j++) {
+      if (map[i][j] == currentRoom) {
+        str += 'O';
+      } else if (map[i][j] != null) {
+        str += '*';
+      } else {
+        str += ' ';
+      }
+    }
+    str += "|\n";
+  }
+  str += "+";
+  for (var i = 0; i < map[0].length; i++) {
+    str +="="
+  }
+  str += "+\n";
+  id("map").innerHTML = str;
+}
+
+// Sticks the player in a room (at the moment, the location is fixed)
 function addPlayerToRoom() {
   player.row = 3;
   player.col = 5;
   currentRoom[player.row][player.col] = player;
 }
 
+// Prints the room on the page (needs to be called to see anything happen)
 function drawRoom() {
   var pre = id("game-area");
   var str = "";
@@ -90,6 +151,7 @@ function drawRoom() {
   pre.innerHTML = str;
 }
 
+// Moves the player if input is being given
 function updatePlayer() {
   var rowDiff = (movingU ? -1 : 0) + (movingD ? 1 : 0);
   var colDiff = (movingL ? -1 : 0) + (movingR ? 1 : 0);
@@ -107,10 +169,12 @@ function updatePlayer() {
   }
 }
 
+// Makes sure the player isn't hitting a wall
 function canStandAt(loc) {
   return loc != wall;
 }
 
+// Listener functions for keypresses
 function getKeysDown(e) {
   getKeyToggle(e.keyCode, true);
 }
@@ -118,12 +182,20 @@ function getKeysUp(e) {
   getKeyToggle(e.keyCode, false);
 }
 function getKeyToggle(key, val) {
+  // WASD
   if (key == 65) movingL = val;
   else if (key == 68) movingR = val;
   else if (key == 87) movingU = val;
   else if (key == 83) movingD = val;
+
+  // IJKL
+  if (key == 73) loadRoomAt(currentRoom.row - 1, currentRoom.col);
+  else if (key == 74) loadRoomAt(currentRoom.row, currentRoom.col - 1);
+  else if (key == 75) loadRoomAt(currentRoom.row + 1, currentRoom.col);
+  else if (key == 76) loadRoomAt(currentRoom.row, currentRoom.col + 1);
 }
 
+// Shorthand because I'm lazy
 function id(selector) {
   return document.getElementById(selector);
 }
