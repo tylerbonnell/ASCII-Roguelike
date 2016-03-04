@@ -37,9 +37,7 @@ function generateRooms() {
       map[i] = new Array(width);
       for (var j = 0; j < map[i].length; j++) {
         if (Math.random() < 0.5) {
-          map[i][j] = generateRoom();
-          map[i][j].row = i;
-          map[i][j].col = j;
+          map[i][j] = new room(i, j);
           allRooms.push(map[i][j]);
         }
       }
@@ -51,6 +49,9 @@ function generateRooms() {
         map[allRooms[i].row][allRooms[i].col] = null;
       }
     }
+  }
+  for (var i = 0; i < connectedRooms.length; i++) {
+    connectedRooms[i].generateRoom();
   }
 }
 
@@ -68,25 +69,29 @@ function getConnectedRooms(row, col, arr) {
 }
 
 // Genereates a single room object
-function generateRoom() {
-  var width = randomInt(20, 80);
-  var height = randomInt(10, 30);
-  var room = new Array(height);
-  for (var i = 0; i < room.length; i++) {
-    room[i] = new Array(width);
-    room[i][0] = wall;
-    room[i][room[i].length - 1] = wall;
+function room(row, col) {
+  this.width = randomInt(20, 80);
+  this.height = randomInt(10, 30);
+  this.row = row;
+  this.col = col;
+  this.arr = new Array(this.height);
+  this.generateRoom = function() {
+    var room = this.arr;
+    for (var i = 0; i < room.length; i++) {
+      room[i] = new Array(this.width);
+      room[i][0] = wall;
+      room[i][room[i].length - 1] = wall;
+    }
+    for (var i = 0; i < room[0].length; i++) {
+      room[0][i] = wall;
+      room[room.length - 1][i] = wall;
+    }
   }
-  for (var i = 0; i < room[0].length; i++) {
-    room[0][i] = wall;
-    room[room.length - 1][i] = wall;
-  }
-  return room;
 }
 
+// Loads the room at the given indeces, if possible
 function loadRoomAt(row, col) {
   if (mapContains(row, col) && map[row][col] != null) {
-    console.log("moved room!");
     currentRoom[player.row][player.col] = null;
     currentRoom = map[row][col];
     addPlayerToRoom();
@@ -99,6 +104,7 @@ function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// Returns true if the indeces are within the map's bounds
 function mapContains(row, col) {
   return row >= 0 && row < map.length && col >= 0 && col < map[0].length;
 }
@@ -135,16 +141,16 @@ function printMap() {
 function addPlayerToRoom() {
   player.row = 3;
   player.col = 5;
-  currentRoom[player.row][player.col] = player;
+  currentRoom.arr[player.row][player.col] = player;
 }
 
 // Prints the room on the page (needs to be called to see anything happen)
 function drawRoom() {
   var pre = id("game-area");
   var str = "";
-  for (var i = 0; i < currentRoom.length; i++) {
-    for (var j = 0; j < currentRoom[i].length; j++) {
-      str += currentRoom[i][j] == null ? ' ' : currentRoom[i][j].char;
+  for (var i = 0; i < currentRoom.arr.length; i++) {
+    for (var j = 0; j < currentRoom.arr[i].length; j++) {
+      str += currentRoom.arr[i][j] == null ? ' ' : currentRoom.arr[i][j].char;
     }
     str += "\n";
   }
@@ -156,16 +162,16 @@ function updatePlayer() {
   var rowDiff = (movingU ? -1 : 0) + (movingD ? 1 : 0);
   var colDiff = (movingL ? -1 : 0) + (movingR ? 1 : 0);
   if (rowDiff != 0 || colDiff != 0) {
-    currentRoom[player.row][player.col] = null;
-    if (canStandAt(currentRoom[player.row + rowDiff][player.col + colDiff])) { // moving diagonally
+    currentRoom.arr[player.row][player.col] = null;
+    if (canStandAt(currentRoom.arr[player.row + rowDiff][player.col + colDiff])) { // moving diagonally
       player.row += rowDiff;
       player.col += colDiff;
-    } else if (canStandAt(currentRoom[player.row + rowDiff][player.col])) { // move vertical
+    } else if (canStandAt(currentRoom.arr[player.row + rowDiff][player.col])) { // move vertical
       player.row += rowDiff;
-    } else if (canStandAt(currentRoom[player.row][player.col + colDiff])) { // move horizontal
+    } else if (canStandAt(currentRoom.arr[player.row][player.col + colDiff])) { // move horizontal
       player.col += colDiff;
     }
-    currentRoom[player.row][player.col] = player;
+    currentRoom.arr[player.row][player.col] = player;
   }
 }
 
