@@ -9,12 +9,14 @@ var movingD = false;
 
 // World Stuff
 var wall = {char: 'W'};
-var player = new player();
+var player = {char: "$"};
+var projectile = {char: "o"};
 
 window.onload = function() {
   window.onkeydown = getKeysDown;
   window.onkeyup = getKeysUp;
-  currentRoom = generateRoom();
+  generateRooms();
+  printMap();
   addPlayerToRoom();
   setInterval(function() {  // main game loop
     updatePlayer();
@@ -22,11 +24,42 @@ window.onload = function() {
   }, 75);
 }
 
+function generateRooms() {
+  var width = 20;
+  var height = 7;
+  map = new Array(height);
+  for (var i = 0; i < height; i++) {
+    map[i] = new Array(width);
+    for (var j = 0; j < map[i].length; j++) {
+      if (Math.random() > 0.5) {
+        map[i][j] = generateRoom();
+        currentRoom = map[i][j];
+      }
+    }
+  }
+}
+
+function printMap() {
+  var str = "";
+  for (var i = 0; i < map.length; i++) {
+    for (var j = 0; j < map[i].length; j++) {
+      if (map[i][j] == currentRoom) {
+        str += 'O';
+      } else if (map[i][j] != null) {
+        str += '*';
+      } else {
+        str += ' ';
+      }
+    }
+    str += "\n";
+  }
+  id("map").innerHTML = str;
+}
+
 function generateRoom() {
   var width = 60;
   var height = 20;
   var room = new Array(height);
-  // generate arrays
   for (var i = 0; i < room.length; i++) {
     room[i] = new Array(width);
     room[i][0] = wall;
@@ -36,7 +69,6 @@ function generateRoom() {
     room[0][i] = wall;
     room[room.length - 1][i] = wall;
   }
-
   return room;
 }
 
@@ -47,7 +79,7 @@ function addPlayerToRoom() {
 }
 
 function drawRoom() {
-  var pre = qs("body pre");
+  var pre = id("game-area");
   var str = "";
   for (var i = 0; i < currentRoom.length; i++) {
     for (var j = 0; j < currentRoom[i].length; j++) {
@@ -63,16 +95,20 @@ function updatePlayer() {
   var colDiff = (movingL ? -1 : 0) + (movingR ? 1 : 0);
   if (rowDiff != 0 || colDiff != 0) {
     currentRoom[player.row][player.col] = null;
-    if (currentRoom[player.row + rowDiff][player.col + colDiff] == null) { // moving diagonally
+    if (canStandAt(currentRoom[player.row + rowDiff][player.col + colDiff])) { // moving diagonally
       player.row += rowDiff;
       player.col += colDiff;
-    } else if (currentRoom[player.row + rowDiff][player.col] == null) { // move vertical
+    } else if (canStandAt(currentRoom[player.row + rowDiff][player.col])) { // move vertical
       player.row += rowDiff;
-    } else if (currentRoom[player.row][player.col + colDiff] == null) { // move horizontal
+    } else if (canStandAt(currentRoom[player.row][player.col + colDiff])) { // move horizontal
       player.col += colDiff;
     }
     currentRoom[player.row][player.col] = player;
   }
+}
+
+function canStandAt(loc) {
+  return loc != wall;
 }
 
 function getKeysDown(e) {
@@ -88,14 +124,6 @@ function getKeyToggle(key, val) {
   else if (key == 83) movingD = val;
 }
 
-function qs(selector) {
-  return document.querySelector(selector);
-}
-
-function player() {
-  this.char = '$';
-}
-
-function enemy() {
-  this.char = "X";
+function id(selector) {
+  return document.getElementById(selector);
 }
