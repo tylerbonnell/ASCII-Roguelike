@@ -195,11 +195,11 @@ function door(room, rowsAndCols) {
 }
 
 // Loads the room at the given indeces, if possible
-function loadRoomAt(row, col) {
+function loadRoomAt(row, col, whichDoor) {
   if (mapContains(row, col) && map[row][col] != null) {
     currentRoom.arr[player.row][player.col] = null;
     currentRoom = map[row][col];
-    addPlayerToRoom();
+    addPlayerToRoom(whichDoor);
     printMap();
   }
 }
@@ -243,9 +243,19 @@ function printMap() {
 }
 
 // Sticks the player in a room (at the moment, the location is fixed)
-function addPlayerToRoom() {
-  player.row = 3;
-  player.col = 5;
+function addPlayerToRoom(whichDoor) {
+  if (whichDoor) {
+    var d = null;
+    if (whichDoor == "left") d = currentRoom.leftDoor;
+    else if (whichDoor == "right") d = currentRoom.rightDoor;
+    else if (whichDoor == "top") d = currentRoom.topDoor;
+    else d = currentRoom.bottomDoor;
+    player.row = d.locations[0];
+    player.col = d.locations[1];
+  } else {
+    player.row = 3;
+    player.col = 5;
+  }
   currentRoom.arr[player.row][player.col] = player;
 }
 
@@ -284,16 +294,16 @@ function updatePlayer() {
 
 function loadNewRoomIfOutside(row, col) {
   if (row < 0) {
-    loadRoomAt(currentRoom.row - 1, currentRoom.col);
+    loadRoomAt(currentRoom.row - 1, currentRoom.col, "bottom");
     return true;
   } else if (row >= currentRoom.arr.length) {
-    loadRoomAt(currentRoom.row + 1, currentRoom.col);
+    loadRoomAt(currentRoom.row + 1, currentRoom.col, "top");
     return true;
   } else if (col < 0) {
-    loadRoomAt(currentRoom.row, currentRoom.col - 1);
+    loadRoomAt(currentRoom.row, currentRoom.col - 1, "right");
     return true;
   } else if (col >= currentRoom.arr[0].length) {
-    loadRoomAt(currentRoom.row, currentRoom.col + 1);
+    loadRoomAt(currentRoom.row, currentRoom.col + 1, "left");
     return true;
   }
   return false;
