@@ -10,12 +10,12 @@ var movingD = false;
 // World Stuff
 var wall = {char: 'W'};
 var player = {char: "$"};
-var projectile = {char: "o"};
 
 window.onload = function() {
   window.onkeydown = getKeysDown;
   window.onkeyup = getKeysUp;
   generateRooms();
+  currentRoom.roomComplete();
   printMap();
   addPlayerToRoom();
   setInterval(function() {  // main game loop
@@ -55,13 +55,14 @@ function generateRooms() {
   }
   generateDoors(connectedRooms);
 
+  /* Count the occurences of rooms with single doors */
   var count = 0;
   for (var i = 0; i < connectedRooms.length; i++) {
-    if (connectedRooms[i].doors.length == 1) {
-      count++;
+    if (connectedRooms[i].doors.length == 4) {
+      currentRoom = connectedRooms[i];
+      break;
     }
   }
-  console.log("single door rooms = " + count);
 }
 
 function generateDoors(rooms) {
@@ -123,6 +124,7 @@ function getConnectedRooms(row, col, arr) {
 function room(row, col) {
   this.width = randomInt(20, 80);
   this.height = randomInt(10, 30);
+  this.completed = false;
   this.row = row;
   this.col = col;
   this.arr = new Array(this.height);
@@ -145,7 +147,7 @@ function room(row, col) {
   this.rightDoor = null;
   // adds a door on the given row (should be top or bottom)
   this.addDoorAtRow = function(row) {
-    var doorMid = randomInt(2, this.arr[0].length - 3);
+    var doorMid = randomInt(3, this.arr[0].length - 4);
     var d = new door(this, [row, doorMid, row, doorMid + 1, row, doorMid - 1]);
     this.doors.push(d);
     if (row == 0) this.topDoor = d;
@@ -161,9 +163,11 @@ function room(row, col) {
     else this.rightDoor = d;
     return d;
   }
+
   // marks the room as complete, opens all doors that don't require a key
   // (keys aren't implemented yet, so currently opens all doors)
   this.roomComplete = function() {
+    this.completed = true;
     for (var i = 0; i < this.doors.length; i++) {
       this.doors[i].open();
     }
@@ -333,6 +337,12 @@ function getKeyToggle(key, val) {
   else if (key == 74) loadRoomAt(currentRoom.row, currentRoom.col - 1);
   else if (key == 75) loadRoomAt(currentRoom.row + 1, currentRoom.col);
   else if (key == 76) loadRoomAt(currentRoom.row, currentRoom.col + 1);
+}
+
+function projectile(rowDir, colDir) {
+  this.char = 'o';
+  this.rowDir = rowDir;
+  this.colDir = colDir;
 }
 
 // Shorthand because I'm lazy
