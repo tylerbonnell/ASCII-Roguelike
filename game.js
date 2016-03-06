@@ -6,6 +6,7 @@ var movingL = false;
 var movingR = false;
 var movingU = false;
 var movingD = false;
+var canShoot = true;
 
 // World Stuff
 var wall = {char: 'W'};
@@ -26,8 +27,8 @@ window.onload = function() {
 
 // Generates the map of rooms
 function generateRooms() {
-  var width = 30;
-  var height = 10;
+  var width = 20;
+  var height = 12;
   var minNumOfRooms = 100;
   var connectedRooms = [];
   while (connectedRooms.length < minNumOfRooms) {
@@ -122,7 +123,7 @@ function getConnectedRooms(row, col, arr) {
 // Constructor for a room object. generateRoom() needs to be called to actually
 // build the room.
 function room(row, col) {
-  this.width = randomInt(20, 80);
+  this.width = randomInt(20, 50);
   this.height = randomInt(10, 30);
   this.completed = false;
   this.row = row;
@@ -342,14 +343,21 @@ function getKeyToggle(key, val) {
   else if (key == 83) movingD = val;
 
   // IJKL
-  if (key == 73) playerShoot(-1, 0);
-  else if (key == 74) playerShoot(0, -1);
-  else if (key == 75) playerShoot(1, 0);
-  else if (key == 76) playerShoot(0, 1);
+  if (canShoot) {
+    if (key == 73) playerShoot(-1, 0);
+    else if (key == 74) playerShoot(0, -1);
+    else if (key == 75) playerShoot(1, 0);
+    else if (key == 76) playerShoot(0, 1);
+  }
 }
 
 //
 function playerShoot(rowDir, colDir) {
+  canShoot = false;
+  var timeUntilCanShoot = 200;
+  setTimeout(function() {
+    canShoot = true;
+  }, timeUntilCanShoot);
   var initRowPos = player.row + (rowDir != 0 ? 1 : 0) * (rowDir < 0 ? -1 : 1);
   var initColPos = player.col + (colDir != 0 ? 1 : 0) * (colDir < 0 ? -1 : 1);
   if (currentRoom.arr[initRowPos][initColPos] != null) {  // we hit something, worry about this later
@@ -382,11 +390,13 @@ function projectile(rowPos, colPos, rowDir, colDir, whichRoom) {
 }
 
 function updateProjectile(p) {
-  p.room.arr[p.rowPos][p.colPos] = null;
-  p.rowPos += p.rowDir;
-  p.colPos += p.colDir;
   var floorRowPos = Math.floor(p.rowPos);
   var floorColPos = Math.floor(p.colPos);
+  p.room.arr[floorRowPos][floorColPos] = null;
+  p.rowPos += p.rowDir;
+  p.colPos += p.colDir;
+  floorRowPos = Math.floor(p.rowPos);
+  floorColPos = Math.floor(p.colPos);
   if (roomContains(floorRowPos, floorColPos, p.room)) {
     if (p.room.arr[floorRowPos][floorColPos] == wall) {
       p.destroy();
