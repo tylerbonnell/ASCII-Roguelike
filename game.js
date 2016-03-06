@@ -218,6 +218,15 @@ function mapContains(row, col) {
   return row >= 0 && row < map.length && col >= 0 && col < map[0].length;
 }
 
+// Returns true if the indeces are within a room's bound
+// if no room is specified, looks at the currentRoom
+function roomContains(row, col, room) {
+  if (!room) {
+    room = currentRoom;
+  }
+  return row >= 0 && row < room.arr.length && col >= 0 && col < room.arr[0].length;
+}
+
 // Prints the map of rooms, including showing current room
 function printMap() {
   var str = "+";
@@ -248,7 +257,7 @@ function printMap() {
 
 // Sticks the player in a room (at the moment, the location is fixed)
 function addPlayerToRoom(whichDoor) {
-  if (whichDoor) {
+  if (whichDoor) {  // the player just walked in to a room, put them in the doorway
     var d = null;
     if (whichDoor == "left") d = currentRoom.leftDoor;
     else if (whichDoor == "right") d = currentRoom.rightDoor;
@@ -256,9 +265,9 @@ function addPlayerToRoom(whichDoor) {
     else d = currentRoom.bottomDoor;
     player.row = d.locations[0];
     player.col = d.locations[1];
-  } else {
-    player.row = 3;
-    player.col = 5;
+  } else {  // stick them in the middle
+    player.row = Math.floor(currentRoom.arr.length / 2);
+    player.col = Math.floor(currentRoom.arr[0].length / 2);
   }
   currentRoom.arr[player.row][player.col] = player;
 }
@@ -333,16 +342,60 @@ function getKeyToggle(key, val) {
   else if (key == 83) movingD = val;
 
   // IJKL
-  if (key == 73) loadRoomAt(currentRoom.row - 1, currentRoom.col);
-  else if (key == 74) loadRoomAt(currentRoom.row, currentRoom.col - 1);
-  else if (key == 75) loadRoomAt(currentRoom.row + 1, currentRoom.col);
-  else if (key == 76) loadRoomAt(currentRoom.row, currentRoom.col + 1);
+  if (key == 73) playerShoot(-1, 0);
+  else if (key == 74) playerShoot(0, -1);
+  else if (key == 75) playerShoot(1, 0);
+  else if (key == 76) playerShoot(0, 1);
 }
 
-function projectile(rowDir, colDir) {
+//
+function playerShoot(rowDir, colDir) {
+  var initRowPos = player.row + (rowDir != 0 ? 1 : 0) * (rowDir < 0 ? -1 : 1);
+  var initColPos = player.col + (colDir != 0 ? 1 : 0) * (colDir < 0 ? -1 : 1);
+  if (currentRoom.arr[initRowPos][initColPos] != null) {  // we hit something, worry about this later
+
+  } else {
+    currentRoom.arr[initRowPos][initColPos] =
+        new projectile(initRowPos, initColPos, rowDir, colDir, currentRoom);
+  }
+}
+
+// Constructor for a projectile object
+function projectile(rowPos, colPos, rowDir, colDir, whichRoom) {
+  this.room = whichRoom;
   this.char = 'o';
   this.rowDir = rowDir;
   this.colDir = colDir;
+  this.rowPos = rowPos;
+  this.colPos = colPos;
+  var updateTime = 40;
+  var self = this;
+  this.timer = setInterval(function() {
+    updateProjectile(self);
+  }, updateTime);
+  this.destroy = function() {
+    clearInterval(this.timer);
+    var floorRowPos = Math.floor(this.rowPos - this.rowDir);
+    var floorColPos = Math.floor(this.colPos - this.colDir);
+    this.room.arr[floorRowPos][floorColPos] = null;
+  }
+}
+
+function updateProjectile(p) {
+  p.room.arr[p.rowPos][p.colPos] = null;
+  p.rowPos += p.rowDir;
+  p.colPos += p.colDir;
+  var floorRowPos = Math.floor(p.rowPos);
+  var floorColPos = Math.floor(p.colPos);
+  if (roomContains(floorRowPos, floorColPos, p.room)) {
+    if (p.room.arr[floorRowPos][floorColPos] == wall) {
+      p.destroy();
+    } else {
+      p.room.arr[floorRowPos][floorColPos] = p;
+    }
+  } else {
+    p.destroy();
+  }
 }
 
 // Shorthand because I'm lazy
