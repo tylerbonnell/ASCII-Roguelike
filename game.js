@@ -134,12 +134,14 @@ function room(row, col) {
   this.row = row;
   this.col = col;
   this.arr = new Array(this.height);
+  this.items = new Array(this.height);
   this.generateRoom = function() {
     var room = this.arr;
     for (var i = 0; i < room.length; i++) {
       room[i] = new Array(this.width);
       room[i][0] = wall;
       room[i][room[i].length - 1] = wall;
+      this.items[i] = new Array(this.width);
     }
     for (var i = 0; i < room[0].length; i++) {
       room[0][i] = wall;
@@ -221,6 +223,7 @@ function zombie(room, row, col) {
   this.health = 2;
   this.moveStep = 0;
 
+  // applies damage to the enemy
   this.damage = function() {
     this.health--;
     if (this.health <= 0) {
@@ -228,15 +231,16 @@ function zombie(room, row, col) {
     }
   }
 
+  // makes the enemy die
   this.die = function() {
     this.dead = true;
     this.room.arr[this.row][this.col] = null;
-    // TODO: drop items!
     if (Math.random() > 0.5) {
-      this.room.arr[this.row][this.col] = coin;
+      dropItem(coin, this.room, this.row, this.col)
     }
   }
 
+  // makes the enemy make a single move
   this.move = function() {
     this.moveStep++;
     if (this.moveStep % 2 == 0 && canStandAt(this.room.arr[this.row][this.col - 1])) {
@@ -245,6 +249,11 @@ function zombie(room, row, col) {
       this.room.arr[this.row][this.col] = this;
     }
   }
+}
+
+// Drops an item in the given room
+function dropItem(item, room, row, col) {
+  room.items[row][col] = item;
 }
 
 // Constructor for a door object. Takes an array of ints which represent the row and col
@@ -361,8 +370,15 @@ function printRoom() {
   var str = "";
   for (var i = 0; i < currentRoom.arr.length; i++) {
     for (var j = 0; j < currentRoom.arr[i].length; j++) {
-      if (i == player.row && j == player.col) str += player.char;
-      else str += currentRoom.arr[i][j] == null ? ' ' : currentRoom.arr[i][j].char;
+      if (i == player.row && j == player.col) {
+        str += player.char;
+      } else if (currentRoom.arr[i][j] != null) {
+        str += currentRoom.arr[i][j].char;
+      } else if (currentRoom.items[i][j] != null) {
+        str += currentRoom.items[i][j].char;
+      } else {
+        str += ' ';
+      }
     }
     str += "\n";
   }
@@ -384,9 +400,10 @@ function updatePlayer() {
       } else if (canStandAt(currentRoom.arr[player.row][player.col + colDiff])) { // move horizontal
         player.col += colDiff;
       }
-      var oldItem = currentRoom.arr[player.row][player.col];
-      if (oldItem != null) {
-        playerPickup(oldItem);
+      var item = currentRoom.items[player.row][player.col];
+      if (item != null) {
+        playerPickup(item);
+        currentRoom.items[player.row][player.col] = null;
       }
       currentRoom.arr[player.row][player.col] = player;
     }
@@ -517,7 +534,6 @@ function placeProjectileAt(p, rowPos, colPos) {
     var collider = p.room.arr[rowPos][colPos];
     if (collider != null && collider.solid) {
       if (collider.damage != null) {
-        console.log("damage!");
         collider.damage();
       }
       p.destroy();
