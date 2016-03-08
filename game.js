@@ -1,27 +1,31 @@
 var map; // 2d array of references to rooms (which themselves are 2d arrays)
 var currentRoom;
 
-// Player Controls
+// Player State
 var movingL = false;
 var movingR = false;
 var movingU = false;
 var movingD = false;
 var canShoot = true;
+var coins = 0;
 
 // World Stuff
-var wall = {char: 'W'};
-var player = {char: "$"};
+var wall = {char: 'W', solid: true};
+var player = {char: '$', solid: true};
+var coin = {char: '¢'}
 
 window.onload = function() {
-  window.onkeydown = getKeysDown;
-  window.onkeyup = getKeysUp;
+  window.onkeydown = addKeyToKeyArray;
+  window.onkeyup = removeKeyFromKeyArray;
   generateRooms();
   currentRoom.roomComplete();
-  printMap();
+  printSidebar();
   addPlayerToRoom();
   setInterval(function() {  // main game loop
+    keyCheck();
     updatePlayer();
-    drawRoom();
+    currentRoom.updateEnemies();
+    printRoom();
   }, 75);
 }
 
@@ -64,6 +68,7 @@ function generateRooms() {
       break;
     }
   }
+  currentRoom.enemyFree = true;
 }
 
 function generateDoors(rooms) {
@@ -146,6 +151,8 @@ function room(row, col) {
   this.topDoor = null;
   this.leftDoor = null;
   this.rightDoor = null;
+  this.enemies = [];
+
   // adds a door on the given row (should be top or bottom)
   this.addDoorAtRow = function(row) {
     var doorMid = randomInt(3, this.arr[0].length - 4);
@@ -155,6 +162,7 @@ function room(row, col) {
     else this.bottomDoor = d;
     return d;
   }
+
   // adds a door on the given col (should be furthest left or right)
   this.addDoorAtCol = function(col) {
     var doorMid = randomInt(3, this.arr.length - 4);
@@ -173,11 +181,76 @@ function room(row, col) {
       this.doors[i].open();
     }
   }
+
+  // generates all the enemies for the room
+  this.generateEnemies = function() {
+    this.enemiesHaveBeenSpawned = true;
+    for (var i = 0; i < 5; i++) {
+      var enemyRow = randomInt(2, this.height - 3);
+      var enemyCol = randomInt(2, this.width - 3);
+      while (this.arr[enemyRow][enemyCol] != null) {
+        enemyRow = randomInt(2, this.height - 3);
+        enemyCol = randomInt(2, this.width - 3);
+      }
+      var enemy = new zombie(this, enemyRow, enemyCol);
+      this.enemies.push(enemy);
+      this.arr[enemyRow][enemyCol] = enemy;
+    }
+  }
+
+  this.updateEnemies = function() {
+    for (var i = 0; i < this.enemies.length; i++) {
+      if (this.enemies[i].dead) {
+        this.enemies.splice(i, 1);
+        i--;
+      } else {
+        this.enemies[i].move();
+      }
+    }
+  }
+}
+
+// Constructor for a basic zombie enemy that walks towards
+// the player and tries to hurt them
+function zombie(room, row, col) {
+  this.room = room;
+  this.row = row;
+  this.col = col;
+  this.char = "Z";
+  this.solid = true;
+  this.health = 2;
+  this.moveStep = 0;
+
+  this.damage = function() {
+    this.health--;
+    if (this.health <= 0) {
+      this.die();
+    }
+  }
+
+  this.die = function() {
+    this.dead = true;
+    this.room.arr[this.row][this.col] = null;
+    // TODO: drop items!
+    if (Math.random() > 0.5) {
+      this.room.arr[this.row][this.col] = coin;
+    }
+  }
+
+  this.move = function() {
+    this.moveStep++;
+    if (this.moveStep % 2 == 0 && canStandAt(this.room.arr[this.row][this.col - 1])) {
+      this.room.arr[this.row][this.col] = null;
+      this.col--;
+      this.room.arr[this.row][this.col] = this;
+    }
+  }
 }
 
 // Constructor for a door object. Takes an array of ints which represent the row and col
 // of each location of the door (since doors can occupy multiple spaces)
 function door(room, rowsAndCols) {
+  this.solid = true;
   this.char = "D";
   this.locations = rowsAndCols;
   this.room = room;
@@ -205,7 +278,12 @@ function loadRoomAt(row, col, whichDoor) {
     currentRoom.arr[player.row][player.col] = null;
     currentRoom = map[row][col];
     addPlayerToRoom(whichDoor);
-    printMap();
+    if (!currentRoom.enemyFree && !currentRoom.enemiesHaveBeenSpawned) {
+      currentRoom.generateEnemies();
+    } else if (currentRoom.enemiesHaveBeenSpawned) {
+      // we probably want to move around the enemies a bit
+    }
+    printSidebar();
   }
 }
 
@@ -229,7 +307,8 @@ function roomContains(row, col, room) {
 }
 
 // Prints the map of rooms, including showing current room
-function printMap() {
+function printSidebar() {
+  // Print the map
   var str = "+";
   for (var i = 0; i < map[0].length; i++) {
     str +="="
@@ -252,7 +331,10 @@ function printMap() {
   for (var i = 0; i < map[0].length; i++) {
     str +="="
   }
-  str += "+\n";
+  str += "+\n\n";
+  if (coins > 0) {
+    str += coins + coin.char;
+  }
   id("map").innerHTML = str;
 }
 
@@ -274,12 +356,13 @@ function addPlayerToRoom(whichDoor) {
 }
 
 // Prints the room on the page (needs to be called to see anything happen)
-function drawRoom() {
+function printRoom() {
   var pre = id("game-area");
   var str = "";
   for (var i = 0; i < currentRoom.arr.length; i++) {
     for (var j = 0; j < currentRoom.arr[i].length; j++) {
-      str += currentRoom.arr[i][j] == null ? ' ' : currentRoom.arr[i][j].char;
+      if (i == player.row && j == player.col) str += player.char;
+      else str += currentRoom.arr[i][j] == null ? ' ' : currentRoom.arr[i][j].char;
     }
     str += "\n";
   }
@@ -301,8 +384,19 @@ function updatePlayer() {
       } else if (canStandAt(currentRoom.arr[player.row][player.col + colDiff])) { // move horizontal
         player.col += colDiff;
       }
+      var oldItem = currentRoom.arr[player.row][player.col];
+      if (oldItem != null) {
+        playerPickup(oldItem);
+      }
       currentRoom.arr[player.row][player.col] = player;
     }
+  }
+}
+
+function playerPickup(item) {
+  if (item == coin) {
+    coins++;
+    printSidebar();
   }
 }
 
@@ -325,33 +419,47 @@ function loadNewRoomIfOutside(row, col) {
 
 // Makes sure the player isn't hitting a wall
 function canStandAt(loc) {
-  return loc != wall && !(loc instanceof door);
+  return loc == null || !loc.solid;
 }
 
-// Listener functions for keypresses
-function getKeysDown(e) {
-  getKeyToggle(e.keyCode, true);
+var keysDown = [];
+// When a key is pressed down, add it to the array of keys that are down
+function addKeyToKeyArray(e) {
+  if (!keysDown.includes(e.keyCode)) {
+    keysDown.unshift(e.keyCode);
+  }
 }
-function getKeysUp(e) {
-  getKeyToggle(e.keyCode, false);
+// When a key is unpressed, remove it from the array of keys that are down
+function removeKeyFromKeyArray(e) {
+  var index = keysDown.indexOf(e.keyCode);
+  if (index > -1) {
+    keysDown.splice(index, 1);
+  }
 }
-function getKeyToggle(key, val) {
-  // WASD
-  if (key == 65) movingL = val;
-  else if (key == 68) movingR = val;
-  else if (key == 87) movingU = val;
-  else if (key == 83) movingD = val;
+// Iterate through keysDown and set the necessary variables
+function keyCheck() {
+  movingL = movingR = movingU = movingD = false;
+  for (var i = 0; i < keysDown.length; i++) {
+    var key = keysDown[i];
 
-  // IJKL
-  if (canShoot) {
-    if (key == 73) playerShoot(-1, 0);
-    else if (key == 74) playerShoot(0, -1);
-    else if (key == 75) playerShoot(1, 0);
-    else if (key == 76) playerShoot(0, 1);
+    // WASD
+    if (key == 65) movingL = true;
+    else if (key == 68) movingR = true;
+    else if (key == 87) movingU = true;
+    else if (key == 83) movingD = true;
+
+    // IJKL
+    if (canShoot) {
+      if (key == 73) playerShoot(-1, 0);
+      else if (key == 74) playerShoot(0, -1);
+      else if (key == 75) playerShoot(1, 0);
+      else if (key == 76) playerShoot(0, 1);
+    }
   }
 }
 
-//
+// Shoots a projectile from the player with the given row direction
+// and column direction (can be a weird angle like playerShoot(1.5, 0.7))
 function playerShoot(rowDir, colDir) {
   canShoot = false;
   var timeUntilCanShoot = 200;
@@ -360,12 +468,8 @@ function playerShoot(rowDir, colDir) {
   }, timeUntilCanShoot);
   var initRowPos = player.row + (rowDir != 0 ? 1 : 0) * (rowDir < 0 ? -1 : 1);
   var initColPos = player.col + (colDir != 0 ? 1 : 0) * (colDir < 0 ? -1 : 1);
-  if (currentRoom.arr[initRowPos][initColPos] != null) {  // we hit something, worry about this later
-
-  } else {
-    currentRoom.arr[initRowPos][initColPos] =
-        new projectile(initRowPos, initColPos, rowDir, colDir, currentRoom);
-  }
+  var p = new projectile(initRowPos, initColPos, rowDir, colDir, currentRoom);
+  placeProjectileAt(p, initRowPos, initColPos);
 }
 
 // Constructor for a projectile object
@@ -381,14 +485,19 @@ function projectile(rowPos, colPos, rowDir, colDir, whichRoom) {
   this.timer = setInterval(function() {
     updateProjectile(self);
   }, updateTime);
+  // Self explanatory, destroys the projectile
   this.destroy = function() {
     clearInterval(this.timer);
     var floorRowPos = Math.floor(this.rowPos - this.rowDir);
     var floorColPos = Math.floor(this.colPos - this.colDir);
-    this.room.arr[floorRowPos][floorColPos] = null;
+    if (this.room.arr[floorRowPos][floorColPos] == self) {
+      this.room.arr[floorRowPos][floorColPos] = null;
+    }
   }
 }
 
+// Updates a projectile based on its saved direction. This should only
+// ever be called by the projectile object itself.
 function updateProjectile(p) {
   var floorRowPos = Math.floor(p.rowPos);
   var floorColPos = Math.floor(p.colPos);
@@ -397,11 +506,23 @@ function updateProjectile(p) {
   p.colPos += p.colDir;
   floorRowPos = Math.floor(p.rowPos);
   floorColPos = Math.floor(p.colPos);
-  if (roomContains(floorRowPos, floorColPos, p.room)) {
-    if (p.room.arr[floorRowPos][floorColPos] == wall) {
+  placeProjectileAt(p, floorRowPos, floorColPos);
+}
+
+// Attempts to place the projectile p in the projectile's room grid at the given
+// row and col position. If it collides with something, deals with it
+// based on what the object is that it collides with (eg damages enemies)
+function placeProjectileAt(p, rowPos, colPos) {
+  if (roomContains(rowPos, colPos, p.room)) {
+    var collider = p.room.arr[rowPos][colPos];
+    if (collider != null && collider.solid) {
+      if (collider.damage != null) {
+        console.log("damage!");
+        collider.damage();
+      }
       p.destroy();
     } else {
-      p.room.arr[floorRowPos][floorColPos] = p;
+      p.room.arr[rowPos][colPos] = p;
     }
   } else {
     p.destroy();
