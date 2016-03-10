@@ -22,8 +22,8 @@ window.onload = function() {
   printSidebar();
   addPlayerToRoom();
   setInterval(function() {  // main game loop
-    keyCheck();
     updatePlayer();
+    keyCheck();
     currentRoom.updateEnemies();
     printRoom();
   }, 75);
@@ -202,7 +202,7 @@ function room(row, col) {
 
   this.updateEnemies = function() {
     for (var i = 0; i < this.enemies.length; i++) {
-      if (this.enemies[i].dead) {
+      if (this.enemies[i].dead || !roomContains(this.enemies[i].row, this.enemies[i].col, this)) {
         this.enemies.splice(i, 1);
         i--;
       } else {
