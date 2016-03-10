@@ -202,7 +202,7 @@ function room(row, col) {
 
   this.updateEnemies = function() {
     for (var i = 0; i < this.enemies.length; i++) {
-      if (this.enemies[i].dead || !roomContains(this.enemies[i].row, this.enemies[i].col)) {
+      if (this.enemies[i].dead) {
         this.enemies.splice(i, 1);
         i--;
       } else {
@@ -250,6 +250,9 @@ function zombie(room, row, col) {
       this.room.arr[this.row][this.col] = null;
       this.col--;
       this.room.arr[this.row][this.col] = this;
+    }
+    if (!roomContains(this.row, this.col, this.room)) {
+      this.die();
     }
   }
 }
