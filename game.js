@@ -125,8 +125,8 @@ function getConnectedRooms(row, col, arr) {
   return arr;
 }
 
-// Constructor for a room object. generateRoom() needs to be called to actually
-// build the room.
+// Constructor for a room object. generateRoom() needs to be called
+// to actually build all the rooms.
 function room(row, col) {
   this.width = randomInt(20, 50);
   this.height = randomInt(10, 30);
@@ -208,6 +208,9 @@ function room(row, col) {
       } else {
         this.enemies[i].move();
       }
+    }
+    if (this.enemies.length == 0) {
+      this.roomComplete();
     }
   }
 }
