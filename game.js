@@ -202,7 +202,7 @@ function room(row, col) {
 
   this.updateEnemies = function() {
     for (var i = 0; i < this.enemies.length; i++) {
-      if (this.enemies[i].dead || !roomContains(this.enemies[i].row, this.enemies[i].col, this)) {
+      if (this.enemies[i].dead || !roomContains(this.enemies[i].row, this.enemies[i].col)) {
         this.enemies.splice(i, 1);
         i--;
       } else {
