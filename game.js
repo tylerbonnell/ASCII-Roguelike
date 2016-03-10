@@ -178,6 +178,8 @@ function room(row, col) {
   // marks the room as complete, opens all doors that don't require a key
   // (keys aren't implemented yet, so currently opens all doors)
   this.roomComplete = function() {
+    // TODO: figure out why this doesn't work
+    console.log("Room complete!");
     this.completed = true;
     for (var i = 0; i < this.doors.length; i++) {
       this.doors[i].open();
