@@ -15,8 +15,8 @@ var player = {char: '$', solid: true};
 var coin = {char: '¢'}
 
 window.onload = function() {
-  window.onkeydown = addKeyToKeyArray;
-  window.onkeyup = removeKeyFromKeyArray;
+  document.getElementById("input").onkeydown = addKeyToKeyArray;
+  document.getElementById("input").onkeyup = removeKeyFromKeyArray;
   generateRooms();
   currentRoom.roomComplete();
   printSidebar();
