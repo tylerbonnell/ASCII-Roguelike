@@ -7,11 +7,17 @@ var movingR = false;
 var movingU = false;
 var movingD = false;
 var canShoot = true;
+var maxHealth = 3;
+var health = maxHealth;
 var coins = 0;
 
 // World Stuff
 var wall = {char: 'W', solid: true};
-var player = {char: '$', solid: true};
+var player = {char: '$', solid: true, damage: function() {
+  console.log("hit");
+  health--;
+  printSidebar();
+}};
 var coin = {char: '¢'}
 
 window.onload = function() {
@@ -21,12 +27,24 @@ window.onload = function() {
   currentRoom.roomComplete();
   printSidebar();
   addPlayerToRoom();
-  setInterval(function() {  // main game loop
-    updatePlayer();
-    keyCheck();
-    currentRoom.updateEnemies();
-    printRoom();
+  gameLoop = setInterval(function() {  // main game loop
+    if (health > 0) {
+      updatePlayer();
+      keyCheck();
+      currentRoom.updateEnemies();
+      printRoom();
+    } else {
+      printDeathMessage();
+    }
   }, 75);
+}
+
+// Pads a string with spaces so it is right-aligned on a line with the overallWidth
+function addSpacesBefore(overallWidth, str) {
+  while(str.length < overallWidth) {
+    str = " " + str;
+  }
+  return str;
 }
 
 // Generates the map of rooms
@@ -187,7 +205,7 @@ function room(row, col) {
   // generates all the enemies for the room
   this.generateEnemies = function() {
     this.enemiesHaveBeenSpawned = true;
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 1; i++) {
       var enemyRow = randomInt(2, this.height - 3);
       var enemyCol = randomInt(2, this.width - 3);
       while (this.arr[enemyRow][enemyCol] != null) {
@@ -221,10 +239,12 @@ function zombie(room, row, col) {
   this.room = room;
   this.row = row;
   this.col = col;
+  this.rowFloat = row;
+  this.colFloat = col;
   this.char = "Z";
   this.solid = true;
   this.health = 2;
-  this.moveStep = 0;
+  this.moveDist = 0.3;
 
   // applies damage to the enemy
   this.damage = function() {
@@ -245,14 +265,27 @@ function zombie(room, row, col) {
 
   // makes the enemy make a single move
   this.move = function() {
-    this.moveStep++;
-    if (this.moveStep % 2 == 0 && canStandAt(this.room.arr[this.row][this.col - 1])) {
-      this.room.arr[this.row][this.col] = null;
-      this.col--;
-      this.room.arr[this.row][this.col] = this;
+    if ((Math.abs(player.row - this.row) == 1 && this.col == player.col) ||
+        (Math.abs(player.col - this.col) == 1 && this.row == player.row)) {
+      console.log("hit player");
+    } else {
+      var angle = Math.atan((this.row - player.row) / (player.col - this.col));
+      var colMove = this.moveDist * Math.cos(angle) * (player.col < this.col ? -1 : 1);
+      var rowMove = Math.abs(this.moveDist * Math.sin(angle)) * (player.row < this.row ? -1 : 1);
+      this.colFloat += colMove;
+      this.rowFloat += rowMove;
+      var floorCol = Math.floor(this.colFloat);
+      var floorRow = Math.floor(this.rowFloat);
+      if (roomContains(floorRow, floorCol, this.room) && (floorCol != this.col || floorRow != this.row) && canStandAt(this.room.arr[floorRow][floorCol])) {
+        this.room.arr[this.row][this.col] = null;
+        this.room.arr[floorRow][floorCol] = this;
+      }
     }
     if (!roomContains(this.row, this.col, this.room)) {
       this.die();
+    } else {
+      this.row = floorRow;
+      this.col = floorCol;
     }
   }
 }
@@ -321,38 +354,6 @@ function roomContains(row, col, room) {
   return row >= 0 && row < room.arr.length && col >= 0 && col < room.arr[0].length;
 }
 
-// Prints the map of rooms, including showing current room
-function printSidebar() {
-  // Print the map
-  var str = "+";
-  for (var i = 0; i < map[0].length; i++) {
-    str +="="
-  }
-  str += "+\n";
-  for (var i = 0; i < map.length; i++) {
-    str += "|";
-    for (var j = 0; j < map[i].length; j++) {
-      if (map[i][j] == currentRoom) {
-        str += 'O';
-      } else if (map[i][j] != null) {
-        str += '*';
-      } else {
-        str += ' ';
-      }
-    }
-    str += "|\n";
-  }
-  str += "+";
-  for (var i = 0; i < map[0].length; i++) {
-    str +="="
-  }
-  str += "+\n\n";
-  if (coins > 0) {
-    str += coins + coin.char;
-  }
-  id("map").innerHTML = str;
-}
-
 // Sticks the player in a room (at the moment, the location is fixed)
 function addPlayerToRoom(whichDoor) {
   if (whichDoor) {  // the player just walked in to a room, put them in the doorway
@@ -389,6 +390,59 @@ function printRoom() {
     str += "\n";
   }
   pre.innerHTML = str;
+}
+
+// Prints the map of rooms, including showing current room
+function printSidebar() {
+  // Print the map
+  var str = "+";
+  var sidebarWidth = map[0].length + 2;
+  for (var i = 0; i < map[0].length; i++) {
+    str +="="
+  }
+  str += "+\n";
+  for (var i = 0; i < map.length; i++) {
+    str += "|";
+    for (var j = 0; j < map[i].length; j++) {
+      if (map[i][j] == currentRoom) {
+        str += 'O';
+      } else if (map[i][j] != null) {
+        str += '*';
+      } else {
+        str += ' ';
+      }
+    }
+    str += "|\n";
+  }
+  str += "+";
+  for (var i = 0; i < map[0].length; i++) {
+    str +="="
+  }
+  str += "+\n\n";
+  var healthStr = "";
+  for (var i = 0; i < maxHealth - health; i++) {
+    healthStr += '×';
+  }
+  for (var i = 0; i < health; i++) {
+    healthStr += '•';
+  }
+  str += addSpacesBefore(sidebarWidth, healthStr);
+  str += "\n\n"
+  if (coins > 0) {
+    str += addSpacesBefore(sidebarWidth, coins + coin.char) + "\n\n";
+  }
+  id("map").innerHTML = str;
+}
+
+// End of game message
+function printDeathMessage() {
+  id("game-area").innerHTML = " __   __  _______  __   __    ______   ___   _______  ______\n" +
+                              "|  | |  ||       ||  | |  |  |      | |   | |       ||      |\n" +
+                              "|  |_|  ||   _   ||  | |  |  |  _    ||   | |    ___||  _    |\n" +
+                              "|       ||  | |  ||  |_|  |  | | |   ||   | |   |___ | | |   |\n" +
+                              "|_     _||  |_|  ||       |  | |_|   ||   | |    ___|| |_|   |\n" +
+                              "  |   |  |       ||       |  |       ||   | |   |___ |       |\n" +
+                              "  |___|  |_______||_______|  |______| |___| |_______||______|";
 }
 
 // Moves the player if input is being given
