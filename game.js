@@ -13,9 +13,9 @@ var coins = 0;
 
 // World Stuff
 var wall = {char: 'W', solid: true};
-var player = {char: '$', solid: true, damage: function() {
+var player = {char: '$', solid: true, damage: function(dmg) {
   console.log("hit");
-  health--;
+  health -= dmg;
   printSidebar();
 }};
 var coin = {char: '¢'}
@@ -205,7 +205,7 @@ function room(row, col) {
   // generates all the enemies for the room
   this.generateEnemies = function() {
     this.enemiesHaveBeenSpawned = true;
-    for (var i = 0; i < 1; i++) {
+    for (var i = 0; i < 5; i++) {
       var enemyRow = randomInt(2, this.height - 3);
       var enemyCol = randomInt(2, this.width - 3);
       while (this.arr[enemyRow][enemyCol] != null) {
@@ -245,6 +245,7 @@ function zombie(room, row, col) {
   this.solid = true;
   this.health = 2;
   this.moveDist = 0.3;
+  this.strength = 0.1;
 
   // applies damage to the enemy
   this.damage = function() {
@@ -265,28 +266,32 @@ function zombie(room, row, col) {
 
   // makes the enemy make a single move
   this.move = function() {
+    var floorRow = this.row;
+    var floorCol = this.col;
     if ((Math.abs(player.row - this.row) == 1 && this.col == player.col) ||
         (Math.abs(player.col - this.col) == 1 && this.row == player.row)) {
       console.log("hit player");
+      player.damage(this.strength);
     } else {
       var angle = Math.atan((this.row - player.row) / (player.col - this.col));
       var colMove = this.moveDist * Math.cos(angle) * (player.col < this.col ? -1 : 1);
       var rowMove = Math.abs(this.moveDist * Math.sin(angle)) * (player.row < this.row ? -1 : 1);
       this.colFloat += colMove;
       this.rowFloat += rowMove;
-      var floorCol = Math.floor(this.colFloat);
-      var floorRow = Math.floor(this.rowFloat);
+      floorCol = Math.floor(this.colFloat);
+      floorRow = Math.floor(this.rowFloat);
+      console.log("colFloat = " + this.colFloat);
+      console.log("rowFloat = " + this.rowFloat);
       if (roomContains(floorRow, floorCol, this.room) && (floorCol != this.col || floorRow != this.row) && canStandAt(this.room.arr[floorRow][floorCol])) {
         this.room.arr[this.row][this.col] = null;
         this.room.arr[floorRow][floorCol] = this;
       }
     }
-    if (!roomContains(this.row, this.col, this.room)) {
+    if (!roomContains(floorRow, floorCol, this.room)) {
       this.die();
-    } else {
-      this.row = floorRow;
-      this.col = floorCol;
     }
+    this.row = floorRow;
+    this.col = floorCol;
   }
 }
 
@@ -420,10 +425,11 @@ function printSidebar() {
   }
   str += "+\n\n";
   var healthStr = "";
-  for (var i = 0; i < maxHealth - health; i++) {
+  var ceilHealth = Math.ceil(health);
+  for (var i = 0; i < maxHealth - ceilHealth; i++) {
     healthStr += '×';
   }
-  for (var i = 0; i < health; i++) {
+  for (var i = 0; i < ceilHealth; i++) {
     healthStr += '•';
   }
   str += addSpacesBefore(sidebarWidth, healthStr);
