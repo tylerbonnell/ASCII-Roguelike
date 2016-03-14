@@ -13,12 +13,16 @@ var coins = 0;
 
 // World Stuff
 var wall = {char: 'W', solid: true};
-var player = {char: '$', solid: true, damage: function(dmg) {
+var player = {char: '$', solid: true, color:"CornflowerBlue", damage(dmg) {
   console.log("hit");
   health -= dmg;
   printSidebar();
 }};
-var coin = {char: '¢'}
+
+// Items
+var coin = {char: '¢', color:"GoldenRod"};
+var heart = {char: '•'};
+var heartContainer = {char: '×'};
 
 window.onload = function() {
   window.onkeydown = addKeyToKeyArray;
@@ -246,6 +250,7 @@ function zombie(room, row, col) {
   this.health = 2;
   this.moveDist = 0.3;
   this.strength = 0.1;
+  this.color = "OliveDrab";
 
   // applies damage to the enemy
   this.damage = function() {
@@ -266,32 +271,30 @@ function zombie(room, row, col) {
 
   // makes the enemy make a single move
   this.move = function() {
-    var floorRow = this.row;
-    var floorCol = this.col;
+    if (!roomContains(this.row, this.col, this.room)) {
+      this.die();
+      return;
+    }
+    this.room.arr[this.row][this.col] = null;
+    // If they're adjacent to the player, damage them
     if ((Math.abs(player.row - this.row) == 1 && this.col == player.col) ||
         (Math.abs(player.col - this.col) == 1 && this.row == player.row)) {
-      console.log("hit player");
       player.damage(this.strength);
     } else {
       var angle = Math.atan((this.row - player.row) / (player.col - this.col));
       var colMove = this.moveDist * Math.cos(angle) * (player.col < this.col ? -1 : 1);
       var rowMove = Math.abs(this.moveDist * Math.sin(angle)) * (player.row < this.row ? -1 : 1);
-      this.colFloat += colMove;
-      this.rowFloat += rowMove;
-      floorCol = Math.floor(this.colFloat);
-      floorRow = Math.floor(this.rowFloat);
-      console.log("colFloat = " + this.colFloat);
-      console.log("rowFloat = " + this.rowFloat);
-      if (roomContains(floorRow, floorCol, this.room) && (floorCol != this.col || floorRow != this.row) && canStandAt(this.room.arr[floorRow][floorCol])) {
-        this.room.arr[this.row][this.col] = null;
-        this.room.arr[floorRow][floorCol] = this;
+      var newCol = Math.floor(this.colFloat + colMove);
+      var newRow = Math.floor(this.rowFloat + rowMove);
+      if (roomContains(newRow, newCol, this.room) &&
+          canStandAt(this.room.arr[newRow][newCol])) {
+        this.row = newRow;
+        this.col = newCol;
+        this.colFloat += colMove;
+        this.rowFloat += rowMove;
       }
     }
-    if (!roomContains(floorRow, floorCol, this.room)) {
-      this.die();
-    }
-    this.row = floorRow;
-    this.col = floorCol;
+    this.room.arr[this.row][this.col] = this;
   }
 }
 
@@ -383,11 +386,11 @@ function printRoom() {
   for (var i = 0; i < currentRoom.arr.length; i++) {
     for (var j = 0; j < currentRoom.arr[i].length; j++) {
       if (i == player.row && j == player.col) {
-        str += player.char;
+        str += charString(player);
       } else if (currentRoom.arr[i][j] != null) {
-        str += currentRoom.arr[i][j].char;
+        str += charString(currentRoom.arr[i][j]);
       } else if (currentRoom.items[i][j] != null) {
-        str += currentRoom.items[i][j].char;
+        str += charString(currentRoom.items[i][j]);
       } else {
         str += ' ';
       }
@@ -395,6 +398,14 @@ function printRoom() {
     str += "\n";
   }
   pre.innerHTML = str;
+}
+
+// Adds a color span around a character if it should be colored
+function charString(char) {
+  if (char.color) {
+    return "<span style=\"color:" + char.color + "\">" + char.char + "</span>";
+  }
+  return char.char;
 }
 
 // Prints the map of rooms, including showing current room
@@ -426,14 +437,18 @@ function printSidebar() {
   str += "+\n\n";
   var healthStr = "";
   var ceilHealth = Math.ceil(health);
+
+  // Health bar
   for (var i = 0; i < maxHealth - ceilHealth; i++) {
-    healthStr += '×';
+    healthStr += heartContainer.char;
   }
   for (var i = 0; i < ceilHealth; i++) {
-    healthStr += '•';
+    healthStr += heart.char;
   }
   str += addSpacesBefore(sidebarWidth, healthStr);
   str += "\n\n"
+
+  // Coins
   if (coins > 0) {
     str += addSpacesBefore(sidebarWidth, coins + coin.char) + "\n\n";
   }
@@ -563,6 +578,7 @@ function projectile(rowPos, colPos, rowDir, colDir, whichRoom) {
   this.colDir = colDir;
   this.rowPos = rowPos;
   this.colPos = colPos;
+  this.color = "gray";
   var updateTime = 40;
   var self = this;
   this.timer = setInterval(function() {
