@@ -1,3 +1,7 @@
+/*
+  A browser-based ASCII art game inspired by The Binding of Isaac.
+*/
+
 var map; // 2d array of references to rooms (which themselves are 2d arrays)
 var currentRoom;
 
